@@ -10,6 +10,8 @@ class Application_Model_SystemUsers extends Zend_Db_Table_Abstract {
 	
 	protected $_created;
 	
+	protected $_admin;
+	
 	protected $_name = "system_users";
 	
 	protected $_primary = "id";
