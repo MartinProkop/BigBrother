@@ -20,6 +20,7 @@ class Application_Model_SystemUsers extends Zend_Db_Table_Abstract {
 	
 	protected $_dependentTables = array(
 		"Application_Model_SystemInterLog",
-		"Application_Model_SystemExternLog"
+		"Application_Model_SystemExternLog",
+		"Application_Model_SystemUsersAcl"
 	);
 }

@@ -11,10 +11,10 @@ id int primary key auto_increment,
 UserId int not null,
 ObjectType varchar(255),
 method varchar(255),
-unique(UserId, ObjectType))");
+unique(UserId, ObjectType)) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_czech_ci");
 
 		// pridani ciziho klice pro ACL
-		$pdo->query("ALTER TABLE system_users_acl ADD CONSTRAINT user01 FOREIGN KEY (UserId) REFERENCES system_users (id)");
+		$pdo->query("ALTER TABLE system_users_acl ADD CONSTRAINT `users-users_acl01` FOREIGN KEY (UserId) REFERENCES system_users (id)");
 		
 		// pridani sloupce admin do tablky uzivatelu
 		$pdo->query("ALTER TABLE system_users ADD COLUMN admin bool default 0");
