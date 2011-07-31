@@ -1,17 +1,5 @@
 <?php
 class Application_Model_SystemUsers extends Zend_Db_Table_Abstract {
-	protected $_id;
-	
-	protected $_username;
-	
-	protected $_password;
-	
-	protected $_salt;
-	
-	protected $_created;
-	
-	protected $_admin;
-	
 	protected $_name = "system_users";
 	
 	protected $_primary = "id";
@@ -21,6 +9,14 @@ class Application_Model_SystemUsers extends Zend_Db_Table_Abstract {
 	protected $_dependentTables = array(
 		"Application_Model_SystemInterLog",
 		"Application_Model_SystemExternLog",
-		"Application_Model_SystemUsersAcl"
+		"Application_Model_SystemUsersAcl",
+		"Application_Model_SystemUsersSessions"
 	);
+	
+	protected $_rowClass = "Application_Model_Row_SystemUser";
+	
+	public function createRow(array $data = array(), $defaultSource = null) {
+		$row = parent::createRow($data, $defaultSource);
+		$row->salt = sha1(time() , microtime());
+	}
 }
