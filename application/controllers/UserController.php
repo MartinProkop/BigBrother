@@ -111,7 +111,7 @@ class UserController extends BB_Controller {
 			$tableAcl->delete("UserId = " . $user->id);
 			
 			// zapsani novych dat
-			if (!is_array($acl])) $acl = (array) $acl;
+			if (!is_array($acl)) $acl = (array) $acl;
 			
 			/**
 			 * @var Zend_Db_Adapter_Abstract
