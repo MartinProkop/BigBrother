@@ -13,7 +13,7 @@ class Migration_2011_07_29_17_23_43 extends MpmMigration
 
 	public function down(PDO &$pdo)
 	{
-		$pdo->exec("DELETE FROM system_users WHERE (`name` like `root`)");
+		$pdo->exec("DELETE FROM system_users WHERE (`name` like 'root')");
 	}
 
 }
