@@ -6,8 +6,8 @@ class BB_Db_Query_Operator_In extends BB_Db_Query_Operator {
 		$left = $this->_operands[0];
 		
 		$operands = $this->_operands;
-		$operands = array_shift($operands);
-		$operandsString = "(" . implode(",", $operands) . ")";
+		array_shift($operands);
+		$operandsString = implode(",", $operands);
 		
 		return "(" . $left . " " . self::OPERATOR_STRING . " (" . $operandsString . "))";
 	}

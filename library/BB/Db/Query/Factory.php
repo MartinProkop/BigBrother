@@ -18,8 +18,8 @@ class BB_Db_Query_Factory {
 		if (!is_array($input)) return self::quoteScalar($input);
 		
 		// vyhodnoceni typu
-		$isOperator = $input[self::OPERATOR];
-		$isExprssion = $input[self::EXPRESION];
+		$isOperator = isset($input[self::OPERATOR]);
+		$isExprssion = isset($input[self::EXPRESION]);
 		
 		if ($isExprssion == $isOperator) {
 			// je pole je definovano jako vyraz i operator nebo neni definovan ani jeden priznak. Toto je nepripustne
@@ -41,15 +41,16 @@ class BB_Db_Query_Factory {
 		// pole je operator, vyhodnoti se, jestli ma dany operator zvlastni tridu
 		$operator = $input[self::OPERATOR];
 		
-		$className = ucwords($operator);
+		$className = ucwords(strtolower($operator));
 		$className = str_replace(" ", "", $className);
 		
 		if (is_file(__DIR__ . "/Operator/" . $className . ".php")) {
 			$className = self::CLASS_PREFIX . $className;
-			return new $className($operator, $params);
+			
+			return new $className($input);
 		}
 		
-		return new BB_Db_Query_Operator($operator, $params);
+		return new BB_Db_Query_Operator($input);
 	}
 	
 	public static function quoteScalar($value) {

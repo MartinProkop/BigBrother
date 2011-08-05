@@ -7,11 +7,15 @@
     </testsuite>
     
     <filter>
-        <!-- If Zend Framework is inside your project's library, uncomment this filter -->
-        <!-- 
         <whitelist>
             <directory suffix=".php">../../library/Zend</directory>
+            <exclude>
+            	<directory suffix=".phtml">../application</directory>
+            </exclude>
         </whitelist>
-        -->
     </filter>
+    <logging>
+    	<log type="testdox-html" target="./log/testdox.html" />
+    	<log type="coverage-html" target="./log/report" charset="UTF-8" yui="true" highlight="true" lowUpperBound="50" highLowerBound="80" />
+    </logging>
 </phpunit>

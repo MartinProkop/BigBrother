@@ -1,3 +1,5 @@
 library/Zend
 application/config/application.ini
 .project
+.settings
+tests/log
