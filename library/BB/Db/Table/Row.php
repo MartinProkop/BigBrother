@@ -1,6 +1,6 @@
 <?php
 
-abstract class BB_Db_Table_Row_Abstract extends Zend_Db_Table_Row_Abstract {
+class BB_Db_Table_Row extends Zend_Db_Table_Row_Abstract {
 
     protected $_position = 0;
 

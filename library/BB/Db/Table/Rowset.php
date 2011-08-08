@@ -1,6 +1,6 @@
 <?php
 
-abstract class BB_Db_Table_Rowset_Abstract extends Zend_Db_Table_Rowset_Abstract {
+class BB_Db_Table_Rowset extends Zend_Db_Table_Rowset_Abstract {
 
     /**
      * vraci hodnotu sloupce, na ktery ukazuje ukazatel iteratoru
