@@ -2,73 +2,59 @@
 
 abstract class BB_Db_Table_Row_Abstract extends Zend_Db_Table_Row_Abstract {
 
+    protected $position = 0;
+
+    public function __construct() {
+        $this->position = 0;
+    }
+
     /**
-     * vrati hodnotu sloupce
+     * vraci hodnotu sloupce, na ktery ukazuje ukazatel iteratoru
      *
-     * @param string $key dotazovany sloupec
      * @return mixed
      */
-    public function __get($key) {
-        $row = $this->_row;
-
-        if (!$row)
-            return null;
-
-        return $row->$key;
+    public function current() {
+        $row = $this->_data;
+        return $row[$this->position];
     }
 
     /**
-     * nastavi hodnotu sloupce
+     * vrati nazev sloupce na ktery ukazuje ukazatel
      *
-     * @param string $key jmeno sloupce
-     * @param mixed $value nova hodnota
+     * @return scalar
+     */
+    public function key() {
+        $row = $this->_data;
+        $keys = array_keys($this->position);
+        return $keys[$this->position];
+    }
+
+    /**
+     * posune ukazatel
+     *
      * @return void
      */
-    public function __set($key, $value) {
-        $row = $this->_row;
-
-        $row->$key = $value;
-
-        return $value;
+    public function next() {
+        ++$this->position;
     }
 
     /**
-     * ulozi zmeny ve sloupci
+     * vraci ukazatel na začátek
      *
-     * @return BB_Db_Table_Row_Abstract
+     * @return void
      */
-    public function save() {
-        $row = $this->_row;
-
-        $row->save();
-
-        return $this;
+    public function rewind() {
+        $this->position = 0;
     }
 
     /**
-     * smaze radek
+     * ověřuje, že existuje sloupec
      *
-     * @return BB_Db_Table_Row_Abstract
+     * @return boolean true kdyz pozice existuje jinak false
      */
-    public function delete() {
-        $row = $this->_row;
-
-        $row->delete();
-
-        return $this;
-    }
-
-    /**
-     * obnovi data v radku
-     *
-     * @return BB_Db_Table_Row_Abstract
-     */
-    public function refresh() {
-        $row = $this->_row;
-
-        $row->refresh();
-
-        return $this;
+    public function valid() {
+        $row = $this->_data;
+        return isset($row[$this->position]);
     }
 
 }
