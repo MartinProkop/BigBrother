@@ -2,10 +2,11 @@
 
 abstract class BB_Db_Table_Row_Abstract extends Zend_Db_Table_Row_Abstract {
 
-    protected $position = 0;
+    protected $_position = 0;
 
-    public function __construct() {
+    public function __construct(array $config = array()) {
         $this->position = 0;
+        parent::__construct($config);
     }
 
     /**
