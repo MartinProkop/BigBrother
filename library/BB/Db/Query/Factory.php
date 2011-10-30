@@ -1,71 +1,32 @@
 <?php
 class BB_Db_Query_Factory {
-	const ESCAPE = "\\";
-	
-	const COLUMN = "[";
-	
-	const EXPRESION = "expresion";
-	
-	const OPERATOR = "operator";
-	
-	const SYMBOL = "`";
-	
-	const QUOTE = "'";
-	
 	const CLASS_PREFIX = "BB_Db_Query_Operator_";
 	
 	public static function factory($input) {
-		if (!is_array($input)) return self::quoteScalar($input);
-		
-		// vyhodnoceni typu
-		$isOperator = isset($input[self::OPERATOR]);
-		$isExprssion = isset($input[self::EXPRESION]);
-		
-		if ($isExprssion == $isOperator) {
-			// je pole je definovano jako vyraz i operator nebo neni definovan ani jeden priznak. Toto je nepripustne
-			throw new BB_Db_Query_Exception("Unsolvable definiton");
-		}
-		
-		// uprava parametru
-		$params = array();
-		
-		foreach ($input as $key => $value) {
-			if (is_numeric($key)) {
-				$params[] = $value;
+		// kontrola, jeslti je vstupni parametr pole
+		if (is_array($input)) {
+			// vstupni parametr je pole, vyhodnoti se typ objektu
+			if (isset($input[BB_Db_Query_Operator_Abstract::OPERATOR_KEY])) {
+				// jedna se o operator
+				$className = self::CLASS_PREFIX . $input[BB_Db_Query_Operator_Abstract::OPERATOR_KEY];
+				
+				return new $className($input);
+			} elseif (isset($input[BB_Db_Query_Expresion::EXPR_KEY])) {
+				// jedna se o vyraz
+				return new BB_Db_Query_Expresion($input);
+			} else {
+				// jedna se o sekvencni kontejner
+				return new BB_Db_Query_Sequence($input);
+			}
+		} else {
+			// vstupni parametr neni pole, vyhodnoti se jestli se jedna o primitivu nebo o referenci
+			if (preg_match(BB_Db_Query_Reference::REG_EXP, $input)) {
+				// objekt je reference
+				return new BB_Db_Query_Reference($input);
+			} else {
+				// objekt je primitiva
+				return new BB_Db_Query_Primitive($input);
 			}
 		}
-		
-		// vyhodnoceni, jestli se jedna o operator nebo o vyraz
-		if ($isExprssion) return new BB_Db_Query_Expresion($input[self::EXPRESION], $params);
-		
-		// pole je operator, vyhodnoti se, jestli ma dany operator zvlastni tridu
-		$operator = $input[self::OPERATOR];
-		
-		$className = ucwords(strtolower($operator));
-		$className = str_replace(" ", "", $className);
-		
-		if (is_file(__DIR__ . "/Operator/" . $className . ".php")) {
-			$className = self::CLASS_PREFIX . $className;
-			
-			return new $className($input);
-		}
-		
-		return new BB_Db_Query_Operator($input);
-	}
-	
-	public static function quoteScalar($value) {
-		if (is_numeric($value)) return $value;
-		
-		if ($value[0] == "[") {
-			$value[0] = self::SYMBOL;
-			
-			return str_replace("]", self::SYMBOL, $value);
-		}
-		
-		if ((substr($value, 0, 2) == "\\\\") || (substr($value, 0, 2) == "\\[")) {
-			$value = substr($value, 1);
-		}
-		
-		return self::QUOTE . mysql_escape_string($value) . self::QUOTE;
 	}
 }

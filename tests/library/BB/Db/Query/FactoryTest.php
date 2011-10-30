@@ -1,49 +1,52 @@
 <?php
 class BB_Db_Query_FactoryTest extends PHPUnit_Framework_TestCase {
-	protected $_columnOriginal = "[sloupec]";
-	
-	protected $_column = "`sloupec`";
-	
-	protected $_escapedOriginal = "\[vzavorkach]";
-	
-	protected $_escaped = "'[vzavorkach]'";
-	
-	protected $_scalarOriginal = "text";
-	
-	protected $_scalar = "'text'";
-	
-	protected $_operatorData = array(
-		BB_Db_Query_Factory::OPERATOR => "as",
-		"[column]",
-		"sloupec"
-	);
-	
 	public function setUp() {
 		
 	}
 	
-	/**
-	 * @expectedException BB_Db_Query_Exception
-	 */
-	public function testExceptions() {
-		BB_Db_Query_Factory::factory(array());
+	public function testExpresion() {
+		$value = array(
+			BB_Db_Query_Expresion::EXPR_KEY => "CONCAT(?)",
+			"hoj"
+		);
 		
-		BB_Db_Query_Factory::factory(array(BB_Db_Query_Factory::EXPRESION => "s", BB_Db_Query_Factory::OPERATOR => "b"));
+		$obj = BB_Db_Query_Factory::factory($value);
+		$this->assertType("BB_Db_Query_Expresion", $obj);
 	}
 	
-	public function testScalars() {
-		// test sloupce
-		$this->assertEquals($this->_column, BB_Db_Query_Factory::factory($this->_columnOriginal));
+	public function testSequence() {
+		$value = array(
+			"val",
+			"AND",
+			"val2"
+		);
 		
-		// test nesloupce
-		$this->assertEquals($this->_escaped, BB_Db_Query_Factory::factory($this->_escapedOriginal));
-		
-		//skalarni
-		$this->assertEquals($this->_scalar, BB_Db_Query_Factory::factory($this->_scalarOriginal));
+		$obj = BB_Db_Query_Factory::factory($value);
+		$this->assertType("BB_Db_Query_Sequence", $obj);
 	}
 	
-	public function testUnknown() {
-		// test obecneho operatoru
-		$this->assertType("BB_Db_Query_Operator", BB_Db_Query_Factory::factory($this->_operatorData));
+	public function testReference() {
+		$value = "[tabulka.sloupec]";
+		
+		$obj = BB_Db_Query_Factory::factory($value);
+		$this->assertType("BB_Db_Query_Reference", $obj);
+	}
+	
+	public function testPrimitive() {
+		$value = "test";
+		
+		$obj = BB_Db_Query_Factory::factory($value);
+		$this->assertType("BB_Db_Query_Primitive", $obj);
+	}
+	
+	public function testOperator() {
+		$value = array(
+			BB_Db_Query_Operator_Abstract::OPERATOR_KEY => "AND",
+			"ahoj",
+			"2"
+		);
+		
+		$obj = BB_Db_Query_Factory::factory($value);
+		$this->assertType("BB_Db_Query_Operator_AND", $obj);
 	}
 } 
