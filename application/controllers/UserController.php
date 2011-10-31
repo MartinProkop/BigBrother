@@ -1,150 +1,174 @@
 <?php
-class UserController extends BB_Controller {
+class UserController extends Zend_Controller_Action {
 	const VALIDTIME = "01:00:00";
 	
 	const MIN_PASSWORD_LENGTH = 5;
 	
+	const ROOT_ID = 1;
+	
+	const GUEST_ID = 2;
+	
+	/**
+	 * @var Application_Model_Row_User
+	 */
+	private $_user;
+	
 	public function init() {
+		$this->view->response = new BB_Controller_Response("SYSTEM");
+		
 		$request = $this->getRequest();
 		$actionName = $request->getActionName();
 		
-		// vyhodnoceni, jslti se ma preskocit autorizace a autentizace
-		if (substr($actionName, 0, 6) == "signin") {
-			$this->skipAuthentization();
-			$this->skipAuthorization();
+		// nacteni uzivatele
+		$session = new Zend_Session_Namespace("system");
+		$sessid = $this->getRequest()->getParam("_sessid", false);
+		
+		$sessid = $sessid ? $sessid : $session->sessid;
+		
+		// pokud id session je definovano, nacte se uzivatel pres toto id
+		if ($sessid) {
+			// nacteni session
+			$tableSessions = new Application_Model_Sessions;
+			$userSession = $tableSessions->find($sessid)->current();
 			
-			return;
+			// kontrola jestli je session platne
+			if ($userSession) {
+				// update session a ulozeni
+				$userSession->used_at = new Zend_Db_Expr("NOW()");
+				$userSession->save();
+				
+				// nacteni uzivatele
+				$this->_user = $userSession->findParentRow("Application_Model_Users", "user");
+			} else {
+				// session neni platne, nacte se guest
+				$tableUsers = new Application_Model_Users;
+				$this->_user = $tableUsers->find(self::GUEST_ID)->current();
+			}
+		} else {
+			// id neni definovano, nacte se host
+			$tableUsers = new Application_Model_Users;
+			$this->_user = $tableUsers->find(self::GUEST_ID)->current();
 		}
 		
-		if ((substr($actionName, 0, 7) == "signout") || substr($actionName, 0, 3) == "get" || substr($actionName, 0, 3) == "put") {
-			$this->skipAuthorization();
+		// kontrola opravneni
+		if ((substr($actionName, 0, 6) != "signin") && (substr($actionName, 0, 7) != "signout") && (substr($actionName, 0, 3) != "get") && (substr($actionName, 0, 3) != "put") && !$this->_user->is_admin) {
+			// uzivatel neni opravnen k pseudoobjektu pristupovat
+			throw new Zend_Acl_Exception("You are not permited to requested action", 403);
 		}
 	}
 	
 	public function deleteAction() {
-		/**
-		 * @var Application_Model_Row_SystemUser
-		 */
-		$user = $this->_loadUserFromParam();
+		// ziskani dat a nacteni uzivatele
+		$data = $this->getRequest()->getParam("user", array());
+		$data = array_merge(array("id" => 0), $data);
 		
-		if (!$user) throw new BB_Exception_NotFound;
+		$user = $this->_loadUser($data);
+		
+		// pokud se uzivatel snazi smazat sam sebe, zabrani se mu v tom
+		if ($user->id == $this->_user->id)
+			throw new BB_Exception_Conflict;
+		
+		// pokud se uzivatel snazi smazat ucet root nebo guest, zabrani se mu v tom
+		if ($user->id == self::ROOT_ID || $user->id == self::GUEST_ID)
+			throw new BB_Exception_Conflict;
 		
 		// pokud je uzivatel admin, je zakazano ho smazat
-		if ($user->admin) throw new BB_Exception_Forbidden;
+		if ($user->is_admin) throw new BB_Exception_Forbidden;
 		
 		//smazani dat
 		$user->delete();
+		
+		$this->view->response->setOk();
 	}
 	
 	public function getAction() {
-		$user = $this->_loadUserFromParam();
+		// ziskani dat a nacteni uzivatele
+		$data = $this->getRequest()->getParam("user", array());
+		$data = array_merge(array("id" => 0), $data);
+		
+		$user = $this->_loadUser($data);
+		
+		// kontrola opravneni
+		if ($user->id != $this->_user->id && !$this->_user->is_admin)
+			throw new BB_Exception_Forbidden;
 		
 		// nacteni dat ACL
-		$acl = $user->findDependentRowset("Application_Model_SystemUsersAcl", "user");
+		$acl = $user->findDependentRowset("Application_Model_Permisions", "user");
+		$arrUser = $user->toArray();
 		
-		$this->view->user = $user;
-		$this->view->acl = $acl;
+		unset($arrUser["salt"], $arrUser["password"]);
+		
+		$this->view->response->data["user"] = $arrUser;
+		$this->view->response->data["acl"] = $acl->toArray();
 	}
 	
 	public function listAction() {
 		// nacteni seznamu uzivatelu
-		$tableUsers = new Application_Model_SystemUsers;
+		$tableUsers = new Application_Model_Users;
 		
 		$users = $tableUsers->fetchAll();
-		$this->view->users = $users;
+		$this->view->response->setOk();
+		$this->view->response->data = $users->toArray();
 	}
 	
 	public function postAction() {
 		// kontrola dat
-		$data = array_merge(array("name" => "", "password" => ""), $this->getRequest()->getParam("user", array()));
+		$data = array_merge(array("login" => "", "password" => ""), $this->getRequest()->getParam("user", array()));
 		
 		// validace dat
 		$notEmpty = new Zend_Validate_NotEmpty;
 		$alnum = new Zend_Validate_Alnum(false);
 		
-		if (!($notEmpty->isValid($data["name"]) && $alnum->isValid($data["name"]) && $notEmpty->isValid($data["password"]))) throw new BB_Exception_ValidateError;
+		if (!($notEmpty->isValid($data["login"]) && $alnum->isValid($data["login"]) && $notEmpty->isValid($data["password"]))) throw new BB_Exception_ValidateError;
 		
 		// kontrola jeslti uzivatel existuje
-		$tableUsers = new Application_Model_SystemUsers;
+		$tableUsers = new Application_Model_Users;
 		
-		if ($tableUsers->fetchRow($tableUsers->getAdapter()->quoteInto("`name` like ?", $data["name"]))) throw new BB_Exception_Conflict;
+		if ($tableUsers->fetchRow($tableUsers->getAdapter()->quoteInto("`login` like ?", $data["login"]))) throw new BB_Exception_Conflict;
 		
 		// vytvoreni noveho uzivatele
 		/**
-		 * @var Application_Model_Row_SystemUser
+		 * @var Application_Model_Row_User
 		 */
 		$user = $tableUsers->createRow();
-		$user->name = $data["name"];
+		$user->login = $data["login"];
 		$user->setPassword($data["password"]);
 		
 		$user->save();
 		
-		$this->view->user = $user;
+		$this->view->response->data = $user->toArray();
+		$this->view->response->setOk();
 	}
 	
 	public function putAction() {
-		/**
-		 * @var Application_Model_Row_SystemUser
-		 */
-		$user = $this->_loadUserFromParam();
+		// nacteni uzivatele
+		$data = $this->getRequest()->getParam("user", array());
+		$data = array_merge(array("id" => 0), $data);
+		
+		$user = $this->_loadUser($data);
 		
 		if (!$user) throw new BB_Exception_NotFound();
 		
-		// kontorla opravneni menit uzivatele
-		if ($user->id != $this->_user->id && !$this->_user->admin) throw new BB_Exception_Forbidden;
+		// kontrola, jeslti uzivatel upravuje jineho uzivatele a v tom pripade, jeslti je admin
+		if ($user->id != $this->_user->id && !$this->_user->is_admin)
+			throw new BB_Exception_Forbidden;
 		
 		// pokud je odeslano heslo, zmeni se heslo
 		if (isset($data["password"])) $user->setPassword($data["password"]);
 		
-		// kontrola pozadavku na nastaveni prepinace admin
-		if (isset($data["admin"]) && $this->getUser()->admin) {
-			$user->admin = (bool) $data["admin"];
-		} elseif (isset($data["admin"])) {
+		// kontrola pozadavku na nastaveni prepinace is_admin
+		if (isset($data["is_admin"]) && $this->_user->is_admin) {
+			$user->is_admin = (bool) $data["is_admin"];
+		} elseif (isset($data["is_admin"])) {
 			throw new BB_Exception_Forbidden;
 		}
 		
-		// pokud jsou odeslany informace ACL a zaroven je uzivatel admin, zmeni se ACL
-		if (($acl = $this->getRequest()->getParam("acl", false)) && $this->getUser()->admin) {
-			$tableAcl = new Application_Model_SystemUsersAcl;
-			
-			// odmazani starych dat
-			$tableAcl->delete("UserId = " . $user->id);
-			
-			// zapsani novych dat
-			if (!is_array($acl)) $acl = (array) $acl;
-			
-			/**
-			 * @var Zend_Db_Adapter_Abstract
-			 */
-			$adapter = $tableAcl->getAdapter();
-			
-			// pole uchovavajici zpracovane pozadavky, aby se predeslo duplikacim
-			$createdAcl = array();
-			
-			foreach ($acl as $item) {
-				if (isset($item["objectType"], $item["method"])) {
-					$objectType = strtolower($item["objectType"]);
-					$method = strtolower($item["method"]);
-					
-					$hash = md5($objectType."#".$method);
-					
-					if (!in_array($hash, $createdAcl)) {
-						$aclData = array(
-							"UserId" => $user->id,
-							"objectType" => $adapter->quote($item["objectType"]),
-							"method" => $adapter->quote($item["method"])
-						);
-						
-						$tableAcl->insert($aclData);
-						
-						$createdAcl[] = $hash;
-					}
-				}
-			} 
-			
-		} elseif ($acl) {
-			throw new BB_Exception_Forbidden;
-		}
+		 // kontrola pozasavku na nastaveni prepinace is_blocked
+		 if (isset($data["is_blocked"]) && $this->_user->is_admin) {
+		 	$user->is_blocked = (bool) $data["is_blocked"];
+		 } elseif (isset($data["is_blocked"])) {
+		 	throw new BB_Exception_Forbidden;
+		 }
 		
 		$user->save();
 	}
@@ -156,50 +180,58 @@ class UserController extends BB_Controller {
 		$data = array_merge(array("name" => "", "password" => ""), $data);
 		
 		// nalezeni uzivatele
-		$tableUsers = new Application_Model_SystemUsers();
+		$tableUsers = new Application_Model_Users();
 		$adapter = $tableUsers->getAdapter();
 		
 		/**
-		 * @var Application_Model_Row_SystemUser
+		 * @var Application_Model_Row_User
 		 */
-		$user = $tableUsers->fetchRow($adapter->quoteInto("`name` like ?", $data["name"]));
+		$user = $tableUsers->fetchRow($adapter->quoteInto("`login` like ?", $data["login"]));
 		
 		if (!$user) throw new BB_Exception_NotFound();
 		
-		if (!$user->isPasswordSame($data["password"])) throw new BB_Exception_NotFound;
+		if (!$user->isPasswordSame($data["password"])) {
+			throw new BB_Exception_NotFound;
+		}
 		
 		// zapsani nove session
-		$tableSessions = new Application_Model_SystemUsersSessions;
+		$tableSessions = new Application_Model_Sessions;
 		
 		/**
-		 * @var Application_Model_SystemUserSession
+		 * @var Application_Model_Session
 		 */
 		$session = $tableSessions->createRow();
-		$session->UserId = $user->id;
-		$session->validTo = new Zend_Db_Expr("ADDTIME(NOW(), '" . self::VALIDTIME . "')");
-		$session->params = Zend_Json::encode($_SERVER);
+		$session->user_id = $user->id;
+		$session->used_at = new Zend_Db_Expr("NOW()");
 		
 		$session->save();
 		
-		$this->getRequest()->setParam("_sessId", $session->sessId);
-		setcookie("_sessId", $session->sessId, 0, "/");
+		$this->getRequest()->setParam("_sessid", $session->hash_id);
+		@setcookie("sessid", $session->hash_id, 0, "/");
 		
 		// zapsani vysledku do vystupu
-		$this->view->user = $user;
+		$this->view->response->data = $user->toArray();
+		$this->view->response->setOk();
 	}
 	
 	public function signoutAction() {
+		//prenastaveni session v requestu
+		$sessid = $this->getRequest()->getParam("_sessid", "");
+		
+		$this->getRequest()->setParam("_sessid", false);
+		$this->view->response->setOk();
+		
 		// nacteni session a jeji smazani z databaze
-		$tableSession = new Application_Model_SystemUsersSessions;
-		$session = $tableSession->find($this->getRequest()->getParam("_sessId"))->current();
+		$tableSession = new Application_Model_Sessions;
+		$session = $tableSession->find($sessid)->current();
+		
+		if (!$session)
+			return;
 		
 		$session->delete();
 		
 		//anulace cookie
-		setcookie("_sessId", null, 1, "/");
-		
-		//prenastaveni session v requestu
-		$this->getRequest()->setParam("_sessId", false);
+		@setcookie("_sessId", null, 1, "/");
 	}
 	
 	/**
@@ -208,18 +240,15 @@ class UserController extends BB_Controller {
 	 * @return Application_Model_Row_SystemUser
 	 * @throw BB_Exception_NotFound
 	 */
-	protected function _loadUserFromParam() {
-		$data = array_merge(array("id" => 0), $this->getRequest()->getParam("user", array()));
-		
-		// nalezeni uzivatele
-		$tableUsers = new Application_Model_SystemUsers;
-		
-		/**
-		 * @var Application_Model_Row_SystemUser
-		 */
-		$user = $tableUsers->find($data["id"])->current();
-		
-		if (!$user) throw new BB_Exception_NotFound();
+	protected function _loadUser($data) {
+		if ($data["id"] && $this->_user->is_admin) {
+			$tableUsers = new Application_Model_Users;
+			$user = $tableUsers->find($data["id"])->current();
+		} elseif ($data["id"]) {
+			throw new BB_Exception_Forbidden;
+		} else {
+			$user = $this->_user;
+		}
 		
 		return $user;
 	}

@@ -1,7 +1,7 @@
 <?php
 class Application_Model_Row_User extends Zend_Db_Table_Row_Abstract {
 	public function isPasswordSame($psw) {
-		return $this->password == $this->hashPassword($psw);
+		return strcmp($this->password, $this->hashPassword($psw)) ? false : true;
 	}
 	
 	public function hashPassword($psw) {

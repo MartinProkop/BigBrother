@@ -1,8 +1,8 @@
 <?php
 class Application_Model_Row_Session extends Zend_Db_Table_Row_Abstract {
 	public function save() {
-		if (!$this->sessId) {
-			$this->sessId = $this->_generateSessId();
+		if (!$this->hash_id) {
+			$this->hash_id = $this->_generateSessId();
 		}
 		
 		return parent::save();

@@ -2,7 +2,7 @@
 class Application_Model_Permisions extends Zend_Db_Table_Abstract {
 	protected $_name = "permisions";
 	
-	protected $_primary = "ud";
+	protected $_primary = "id";
 	
 	protected $_sequence = true;
 	
