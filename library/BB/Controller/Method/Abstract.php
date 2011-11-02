@@ -50,8 +50,18 @@ abstract class BB_Controller_Method_Abstract extends BB_Controller_Abstract {
 		return $this->_dataContainer;
 	}
 	
+	public function createDataRow($data) {
+		/**
+		 * @var BB_Db_Table_Data_Row
+		 */
+		$row = $this->_tableData->createRow($data);
+		$row->setInitialData($this->getUser()->id, $this->getDataObjectType());
+		
+		return $row;
+	}
+	
 	public function getDataObjectType() {
-		return $this->getRequest()->getModuleName();
+		return strtoupper($this->getRequest()->getModuleName());
 	}
 	
 	public function getQuery() {

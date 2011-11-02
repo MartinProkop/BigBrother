@@ -28,4 +28,19 @@ class BB_Db_Table_Data_Rowset extends Zend_Db_Table_Rowset_Abstract {
 		
 		return $uuids;
 	}
+	
+	public function delete() {
+		// smaze vsechny radku v setu
+		$uuids = array(0);
+		
+		foreach ($this as $row) {
+			$uuids[] = $row->getUuid();
+		}
+		
+		$adapter = $this->getTable()->getAdapter();
+		
+		$sql = $adapter->quoteInto("uuid in (?)", $uuids);
+		
+		return $this->getTable()->delete($sql);
+	}
 }
