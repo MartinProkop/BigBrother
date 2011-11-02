@@ -69,26 +69,13 @@ abstract class BB_Controller_Method_Abstract extends BB_Controller_Abstract {
 	}
 	
 	public function reloadData() {
+		// prirpava seznamu UUID
+		$uuids = array();
+		
 		// vyhodnoceni typu dotazu
 		if (is_array($this->_queryObject)) {
-			// queryObject obsahuje seznam UUID
-			if (empty($this->_queryObject)) {
-				// zadna data nejsou pozadovana
-				$config = array(
-					"table" => $this->_tableData,
-					"rowClass" => "BB_Db_Table_Data_Row"
-				);
-				
-				$this->_dataContainer = new BB_Db_Table_Data_Rowset($config);
-				
-				// neni potreba nic dalsiho delat, funkce se ukonci
-				return $this;
-			}
-			
-			// nacteni dat
-			$this->_dataContainer = $this->_tableData->find($this->_queryObject);
-			
-			return $this;
+			// queryObject obsahuje seznam UUID - objekt se slouci s predgenerovanymi hodnotami
+			$uuids += $this->_queryObject;
 		} elseif ($this->_queryObject instanceof stdClass) {
 			// obsahuje data filtracniho objektu probehne sestaveni dotazu
 			$where = $this->_queryObject->__toString();
@@ -127,14 +114,35 @@ abstract class BB_Controller_Method_Abstract extends BB_Controller_Abstract {
 				$uuidList += $record;
 			}
 			
-			// nacteni dat
-			$this->_dataContainer = $this->_tableData->find($uuidList);
+			// slouceni se seznamem
+			$uuids += $uuidList;
+		}
+
+		// kontrola prazdnosti seznamu
+		if (empty($uuids)) {
+			// seznam je prazdny, vytvori se prazdny rowset
+			$config = array(
+				"table" => $this->_tableData,
+				"rowClass" => "BB_Db_Table_Data_Row"
+			);
+			
+			$this->_dataContainer = new BB_Db_Table_Data_Rowset($config);
 			
 			return $this;
 		}
-
-		// pokud se program dostal az sem, nebyl nalezen podporovany format dotazu
-		throw new BB_Exception_ValidateError;
+		
+		// nacteni dat
+		$adapter = $this->_tableData->getAdapter();
+		
+		$condition = array(
+			$adapter->quoteInto("object_type like ?", $this->getDataObjectType()),
+			$adapter->quoteInto("uuid in (?)", $uuids)
+		);
+		
+		// nacteni dat
+		$this->_dataContainer = $this->_tableData->fetchAll($condition);
+		
+		return $this;
 	}
 	
 	/**
