@@ -41,7 +41,9 @@ abstract class BB_Controller_Method_Abstract extends BB_Controller_Abstract {
 		$this->reloadData();
 		
 		// nastaveni vychoziho vystupu
-		$this->_helper->viewRenderer->renderScript(APPLICATION_PATH . "/views/scripts/std_response.phtml");
+		$this->view->setScriptPath(APPLICATION_PATH . "/views/scripts/");
+		$this->_helper->viewRenderer->setRender("std-response", "standard", "default");
+		$this->_responseObject->objectType = $this->getDataObjectType();
 	}
 	
 	abstract public function exeAction();
@@ -151,7 +153,7 @@ abstract class BB_Controller_Method_Abstract extends BB_Controller_Abstract {
 	private function _generateQuery() {
 		// vyhodnoceni odeslanych filtracnich dat
 		$filterObj = $this->getRequest()->getParam("_filter", null);
-		$uuid = $this->getRequest()->getParam("_uuid", null);
+		$uuid = $this->getRequest()->getParam("id", null);
 		$uuids = $this->getRequest()->getParam("_uuids", null);
 		
 		// vyhodnoceni stavu
