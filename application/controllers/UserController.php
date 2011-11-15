@@ -252,4 +252,8 @@ class UserController extends Zend_Controller_Action {
 		
 		return $user;
 	}
+	
+	public function postDispatch() {
+		$this->getResponse()->setHttpResponseCode($this->view->response->statusCode);
+	}
 }
